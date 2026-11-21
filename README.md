@@ -4,9 +4,10 @@ Cyber Rakshak error monitoring for **iOS 13+** (and macOS 10.15+): what goes wro
 **Errors** page in the Cyber Rakshak console, scrubbed of secrets on the device before it leaves. One Swift file,
 Foundation only, no dependencies.
 
-> **1.0.0 has not yet been compiled by us.** The library was written without a Swift compiler at hand and has not been
-> built or run by Cyber Rakshak yet; neither have this package's tests. Build it in your app before you rely on it, and
-> tell us what the compiler says. The first build is this repository's CI on macOS (`.github/workflows/test.yml`).
+> **Compiled and tested by our CI** (`.github/workflows/test.yml`, 2026-11-21: Xcode 26.6, Apple Swift 6.3.3, no
+> warnings): built for macOS and for iOS devices (arm64), and its tests, sending to a stand-in console, pass on macOS 26.7
+> and on an iOS 26.5 Simulator (iPhone 17 Pro). **Not yet run on a real iPhone** or in a shipping app: check that your
+> app's first test crash reaches your Errors page.
 
 ## What it catches
 
@@ -83,8 +84,10 @@ On a Mac with Xcode (Swift 5.7 or later) and Node.js 18+ (for the end-to-end tes
 
 ```sh
 swift build
-swift test
-xcodebuild build -scheme CyberRakshakMonitor -destination 'generic/platform=iOS Simulator'
+swift test                                    # the end-to-end test starts the fake server itself
+xcodebuild build -scheme CyberRakshakMonitor -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO
+# on a Simulator, with a fake server already running (node Tests/CyberRakshakMonitorTests/Fixtures/fake-server.mjs):
+TEST_RUNNER_CR_TEST_SERVER=http://127.0.0.1:PORT xcodebuild test -scheme CyberRakshakMonitor -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
 ```
 
 `Sources/CyberRakshakMonitor/CyberRakshakMonitor.swift`, `LICENSE` and the two files in `Tests/…/Fixtures` are byte for
@@ -93,9 +96,10 @@ console's repository and copied by its `scripts/sdk-packages.mjs`.
 
 ## For maintainers
 
-Swift Package Manager reads versions from git tags (`1.0.0`); there is no registry to publish to. **Do not tag 1.0.0
-yet**: first `swift build`, `swift test` and the iOS build above must pass on a Mac (or this repository's CI), and any
-fix goes into the console's copy first, then here. Until then the package can be tried from the `main` branch.
+Swift Package Manager reads versions from git tags (`1.0.0`, no `v`); there is no registry to publish to. A release:
+copy the new file in (the console's `scripts/sdk-packages.mjs`; a fix goes into the console's copy first), add the
+CHANGELOG entry, push, wait for this repository's CI (macOS and the iOS Simulator) to pass, then tag. 1.0.0 is not
+tagged yet: when is the maintainers' decision.
 
 ## Licence
 

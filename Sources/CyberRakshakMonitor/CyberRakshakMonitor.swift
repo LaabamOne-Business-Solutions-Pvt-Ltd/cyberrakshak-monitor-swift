@@ -3,9 +3,9 @@
 // Copyright Laabam One Business Solutions (OPC) Private Limited
 // Released under the MIT licence: https://app.cyberrakshak.ai/sdk/LICENSE
 //
-// NOT YET COMPILED BY US. This file was written without a Swift compiler at hand (for Swift 5.5 or later, iOS 13 or
-// later, Foundation only) and has not been built or run by Cyber Rakshak yet. Build it in your app before you rely on
-// it, and tell us what the compiler says.
+// For Swift 5.5 or later, iOS 13 or later (macOS 10.15 too), Foundation only. Compiled and tested by Cyber Rakshak's CI
+// (2026-11-21: Xcode 26.6, Apple Swift 6.3.3, no warnings): built for macOS and for iOS devices, and its tests passed on
+// macOS 26.7 and on an iOS 26.5 Simulator, sending to a stand-in console. Not yet run on a real iPhone.
 //
 // What it catches: Objective-C exceptions (NSException) that nobody caught: they are written to the app's Application
 // Support folder at once, the handler that was there before runs as it would have, and the report is sent at the next

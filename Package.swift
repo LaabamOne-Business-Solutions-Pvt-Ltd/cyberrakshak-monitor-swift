@@ -1,5 +1,5 @@
 // swift-tools-version:5.7
-// Cyber Rakshak error monitoring for iOS (and macOS), as a Swift package. NOT YET COMPILED BY US: see README.md.
+// Cyber Rakshak error monitoring for iOS (and macOS), as a Swift package. Built and tested by CI: see README.md.
 import PackageDescription
 
 let package = Package(
