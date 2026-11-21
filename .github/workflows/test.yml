@@ -25,6 +25,7 @@ jobs:
           sw_vers
           xcodebuild -version
           swift --version
+          xcodebuild -showsdks | grep -iE 'ios|macos'
           xcodebuild -list
       - run: swift build
       - name: swift test (macOS; the end-to-end test starts the fake server itself)
@@ -38,11 +39,13 @@ jobs:
           ls .build/xcode/Build/Products/Debug-iphoneos
       - name: Test on an iOS Simulator
         run: |
-          udid=$(xcrun simctl list devices available --json | python3 -c '
+          read -r udid runtime <<EOF
+          $(xcrun simctl list devices available --json | python3 -c '
           import json, sys
           devices = json.load(sys.stdin)["devices"]
-          print(next(d["udid"] for runtime, list_ in sorted(devices.items(), reverse=True) if "iOS" in runtime for d in list_ if d["name"].startswith("iPhone")))')
-          xcrun simctl list devices available | grep "$udid"
+          print(next(d["udid"] + " " + runtime for runtime, list_ in sorted(devices.items(), reverse=True) if "iOS" in runtime for d in list_ if d["name"].startswith("iPhone")))')
+          EOF
+          echo "simulator: $(xcrun simctl list devices available | grep "$udid" | sed 's/^ *//'), runtime $runtime"
           scheme=CyberRakshakMonitor
           if xcodebuild -list | grep -q 'CyberRakshakMonitor-Package'; then scheme=CyberRakshakMonitor-Package; fi
           # The fake server serves until its standard input closes. Nothing of it holds this step's output open.
