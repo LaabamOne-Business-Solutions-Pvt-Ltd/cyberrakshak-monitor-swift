@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0] - 2026-11-21 (not tagged yet)
+## [1.0.0] - 2026-11-21
 
 The iOS library served at https://app.cyberrakshak.ai/sdk/ios/ since 2026-11-21, as a Swift package
 (`CyberRakshakMonitor`, iOS 13+, macOS 10.15+).

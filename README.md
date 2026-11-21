@@ -98,8 +98,7 @@ console's repository and copied by its `scripts/sdk-packages.mjs`.
 
 Swift Package Manager reads versions from git tags (`1.0.0`, no `v`); there is no registry to publish to. A release:
 copy the new file in (the console's `scripts/sdk-packages.mjs`; a fix goes into the console's copy first), add the
-CHANGELOG entry, push, wait for this repository's CI (macOS and the iOS Simulator) to pass, then tag. 1.0.0 is not
-tagged yet: when is the maintainers' decision.
+CHANGELOG entry, push, wait for this repository's CI (macOS and the iOS Simulator) to pass, then tag.
 
 ## Licence
 
