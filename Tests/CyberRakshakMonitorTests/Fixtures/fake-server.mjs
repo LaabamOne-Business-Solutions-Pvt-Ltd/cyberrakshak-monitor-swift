@@ -57,7 +57,7 @@ export function checkContract(method, path, headers, raw) {
   if (!sdk || typeof sdk !== 'object') v.push('sdk missing');
   else {
     if (typeof sdk.name !== 'string' || length(sdk.name) > 40 || !SDK_NAMES.includes(sdk.name)) v.push('sdk.name is ' + JSON.stringify(sdk.name));
-    if (sdk.version !== '1.0.0') v.push('sdk.version is ' + JSON.stringify(sdk.version));
+    if (sdk.version !== '1.1.0') v.push('sdk.version is ' + JSON.stringify(sdk.version));
   }
   if (!PLATFORMS.includes(body.platform)) v.push('platform is ' + JSON.stringify(body.platform));
   if (body.runtime !== undefined && (typeof body.runtime !== 'string' || length(body.runtime) > 60)) v.push('runtime is ' + JSON.stringify(body.runtime));

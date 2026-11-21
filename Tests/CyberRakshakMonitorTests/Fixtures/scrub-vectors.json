@@ -1,5 +1,5 @@
 {
-  "about": "One set of scrub cases for every Cyber Rakshak monitoring library (resources/sdk). Each library's tests run its scrub() over every 'in' and expect 'out' exactly. The rules, in order: query strings; Bearer/Basic values; password/secret/token/api-key style values (the name is kept; at most 40 more name characters after the word); JWTs (a header of at most 500 characters); known key prefixes (crk_, sk_live_, ghp_, AKIA...) not preceded by a letter or digit; email addresses (at most 64 characters before the @); card numbers (13-19 digits, not preceded by a digit, passing the Luhn check); runs of 32+ hex digits; runs of 40+ letters/digits/+_- holding a digit, an upper-case and a lower-case letter.",
+  "about": "One set of scrub cases for every Cyber Rakshak monitoring library (resources/sdk). Each library's tests run its scrub() over every 'in' and expect 'out' exactly. The rules, in order: query strings; Bearer/Basic values; password/secret/token/api-key style values (the name is kept; at most 40 more name characters after the word); JWTs (a header of at most 500 characters); known key prefixes (crk_, sk_live_, ghp_, AKIA...) not preceded by a letter or digit; email addresses (at most 64 characters before the @); IBANs (2 capitals, 2 digits, then 11-30 capitals/digits or the same in groups of four with single spaces, 15-34 in all, not touching a letter or digit, passing the ISO 13616 mod-97 check); card numbers (13-19 digits, not preceded by a digit, passing the Luhn check); whole-word names (authorization, cookie, signature, otp, pin, cvv, cvc, iban, bban, pan, account no/number/num, sort code, card number, bank auth id: not right after a letter or digit, the separator right after the name, a value of Bearer/Basic and a space left alone; the name is kept); runs of 32+ hex digits; runs of 40+ letters/digits/+_- holding a digit, an upper-case and a lower-case letter. A library's scrubNames and scrubPatterns run after these and are not in this file.",
   "vectors": [
     {
       "in": "",
@@ -188,6 +188,94 @@
     {
       "in": "password_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq=hunter2",
       "out": "password_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq=hunter2"
+    },
+    {
+      "in": "pin: 1234 and PIN=9876",
+      "out": "pin: [removed] and PIN=[removed]"
+    },
+    {
+      "in": "{\"otp\":\"482913\",\"cvv\":\"123\",\"cvc\": \"456\"}",
+      "out": "{\"otp\":\"[removed]\",\"cvv\":\"[removed]\",\"cvc\": \"[removed]\"}"
+    },
+    {
+      "in": "iban=IE29AIBK93115212345678 bban: AIBK93115212345678",
+      "out": "iban=[removed] bban: [removed]"
+    },
+    {
+      "in": "account_number=12345678, accountno: 87654321, account-num=1, AccountNumber=2",
+      "out": "account_number=[removed], accountno: [removed], account-num=[removed], AccountNumber=[removed]"
+    },
+    {
+      "in": "sortcode=931152 sort_code: 93-11-52 sort-code=1",
+      "out": "sortcode=[removed] sort_code: [removed] sort-code=[removed]"
+    },
+    {
+      "in": "\"card_number\": \"4111 1111 1111 1111\", cardnumber: 5500",
+      "out": "\"card_number\": \"[removed]\", cardnumber: [removed]"
+    },
+    {
+      "in": "pan: 4111111111111111",
+      "out": "pan: [removed]"
+    },
+    {
+      "in": "bankauthid=ab12 bank_auth_id: cd34",
+      "out": "bankauthid=[removed] bank_auth_id: [removed]"
+    },
+    {
+      "in": "Cookie: sid=abc123; theme=dark",
+      "out": "Cookie: [removed]; theme=dark"
+    },
+    {
+      "in": "set-cookie: sid=abc; Path=/",
+      "out": "set-cookie: [removed]; Path=/"
+    },
+    {
+      "in": "x-tink-signature: 9f2c1a",
+      "out": "x-tink-signature: [removed]"
+    },
+    {
+      "in": "signature=abc",
+      "out": "signature=[removed]"
+    },
+    {
+      "in": "authorization=Zq7xV2pL",
+      "out": "authorization=[removed]"
+    },
+    {
+      "in": "authorization: basic abc",
+      "out": "authorization: basic abc"
+    },
+    {
+      "in": "company: Acme, spinning: yes, japan: 3, opinion: fine, pinned: true, spin=2",
+      "out": "company: Acme, spinning: yes, japan: 3, opinion: fine, pinned: true, spin=2"
+    },
+    {
+      "in": "{\\\"pin\\\":\\\"1234\\\"}",
+      "out": "{\\\"pin\\\":\\\"[removed]\\\"}"
+    },
+    {
+      "in": "Key (iban)=(IE29AIBK93115212345678) already exists",
+      "out": "Key (iban)=([iban]) already exists"
+    },
+    {
+      "in": "IBAN IE29 AIBK 9311 5212 3456 78 on file",
+      "out": "IBAN [iban] on file"
+    },
+    {
+      "in": "GB82WEST12345698765432 and DE89370400440532013000",
+      "out": "[iban] and [iban]"
+    },
+    {
+      "in": "IE30AIBK93115212345678 has a wrong check",
+      "out": "IE30AIBK93115212345678 has a wrong check"
+    },
+    {
+      "in": "ie29aibk93115212345678 is lower case",
+      "out": "ie29aibk93115212345678 is lower case"
+    },
+    {
+      "in": "order FP25ABCD1234567X shipped",
+      "out": "order FP25ABCD1234567X shipped"
     }
   ]
 }

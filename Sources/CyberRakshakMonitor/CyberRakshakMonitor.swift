@@ -1,4 +1,4 @@
-// Cyber Rakshak error monitoring for iOS (Swift), version 1.0.0
+// Cyber Rakshak error monitoring for iOS (Swift), version 1.1.0
 // Docs: https://app.cyberrakshak.ai/sdk/README.md
 // Copyright Laabam One Business Solutions (OPC) Private Limited
 // Released under the MIT licence: https://app.cyberrakshak.ai/sdk/LICENSE
@@ -28,7 +28,7 @@
 import Foundation
 
 public enum CyberRakshakMonitor {
-    public static let version = "1.0.0"
+    public static let version = "1.1.0"
     public static let defaultEndpoint = "https://app.cyberrakshak.ai/api/v1/app-reports"
 
     /// Settings. beforeSend may change a problem or return nil to drop it; context goes with every problem.
@@ -42,10 +42,14 @@ public enum CyberRakshakMonitor {
         public var beforeSend: ((Problem) -> Problem?)?
         public var debug: Bool
         public var context: [String: Any]
+        /// Names of your own whose values are removed, like password= (whole words, A-Z a-z 0-9 _ . -, at most 50). Only adds to the built-in rules.
+        public var scrubNames: [String]
+        /// Regular expressions of your own (NSRegularExpression syntax): what they match is removed (at most 20). Only adds to the built-in rules.
+        public var scrubPatterns: [String]
 
         public init(key: String, endpoint: String = CyberRakshakMonitor.defaultEndpoint, release: String? = nil, environment: String? = nil,
                     enabled: Bool = true, sampleRate: Double = 1, beforeSend: ((Problem) -> Problem?)? = nil, debug: Bool = false,
-                    context: [String: Any] = [:]) {
+                    context: [String: Any] = [:], scrubNames: [String] = [], scrubPatterns: [String] = []) {
             self.key = key
             self.endpoint = endpoint
             self.release = release
@@ -55,6 +59,8 @@ public enum CyberRakshakMonitor {
             self.beforeSend = beforeSend
             self.debug = debug
             self.context = context
+            self.scrubNames = scrubNames
+            self.scrubPatterns = scrubPatterns
         }
     }
 
@@ -137,6 +143,17 @@ public enum CyberRakshakMonitor {
     }
 
     private static let shared = Shared()
+
+    /// scrubNames and scrubPatterns as start() last set them, behind their own lock: scrub() runs where the state's lock
+    /// may be held, and an NSLock is not reentrant.
+    private final class Extras: @unchecked Sendable {
+        let lock = NSLock()
+        var names: NSRegularExpression?
+        var keys: NSRegularExpression?
+        var patterns: [NSRegularExpression] = []
+    }
+
+    private static let extras = Extras()
     private static let work = DispatchQueue(label: "ai.cyberrakshak.monitor", qos: .utility)
     private static let session: URLSession = {
         let configuration = URLSessionConfiguration.ephemeral
@@ -154,9 +171,10 @@ public enum CyberRakshakMonitor {
         guard options.enabled else { return }
         let key = options.key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard matches(key, #"^crk_[A-Za-z0-9]{32}$"#) else {
-            say(options.debug, "not started: key must be the crk_ key from your site's Errors page")
+            say(options.debug, "not started: key must be your site's crk_ app key (its Security scan tab, Apps, servers and scripts)")
             return
         }
+        setExtras(options)
         var release = options.release
         if let r = release, !matches(r, #"^[A-Za-z0-9._+\-]{1,60}$"#) {
             say(options.debug, "release left out: it may hold only A-Z a-z 0-9 . _ + - (at most 60)")
@@ -278,10 +296,22 @@ public enum CyberRakshakMonitor {
         rule(#"(?<![A-Za-z0-9])(?:crk_|crw_|sk_live_|sk_test_|pk_live_|pk_test_|rk_live_|ghp_|gho_|ghs_|ghu_|github_pat_|glpat-|xoxb-|xoxp-|xoxa-|AKIA|ASIA|AIza)[A-Za-z0-9_-]{10,}"#) { _, _ in "[token]" },
         // Email addresses (at most 64 characters before the @, as in an address).
         rule(#"[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"#) { _, _ in "[email]" },
+        // IBANs: two capital letters, two digits, then 11 to 30 capitals or digits (or the same in groups of four, single
+        // spaces between), 15 to 34 in all, passing the ISO 13616 mod-97 check. Before cards: an IBAN holds a digit run.
+        rule(#"(?<![A-Za-z0-9])[A-Z]{2}[0-9]{2}(?:[A-Z0-9]{11,30}|(?: [A-Z0-9]{4}){2,7}(?: [A-Z0-9]{1,4})?)(?![A-Za-z0-9])"#) { m, s in
+            ibanOk(s.substring(with: m.range)) ? "[iban]" : nil
+        },
         // Card numbers: 13 to 19 digits (single spaces or dashes between) that pass the Luhn check.
         rule(#"(?<![0-9])[0-9](?:[ -]?[0-9]){12,18}"#) { m, s in
             let digits = s.substring(with: m.range).filter { $0 >= "0" && $0 <= "9" }
             return luhn(String(digits)) ? "[card]" : nil
+        },
+        // pin: 1234, "iban": "...", set-cookie: ..., x-tink-signature=...: these names only as whole words (not right after a
+        // letter or digit, the separator right after the name), so company:, spinning: and japan: stay; the value goes as in
+        // the password rule. After IBANs and cards, so a value with spaces in it has gone whole already. A value that is
+        // Bearer or Basic and a space was handled above.
+        rule(#"(?<![A-Za-z0-9])((?:authorization|cookie|signature|otp|pin|cvv|cvc|iban|bban|pan|account[_-]?(?:no|number|num)|sort[_-]?code|card[_-]?number|bank[_-]?auth[_-]?id)\\?["']?[ ]*[=:][ ]*\\?["']?)(?!(?:bearer|basic) )[^ \t\r\n&,;"'<>\\]+"#, [.caseInsensitive]) { m, s in
+            s.substring(with: m.range(at: 1)) + "[removed]"
         },
         // Long hex runs: session ids, hashes, keys.
         rule(#"[0-9a-fA-F]{32,}"#) { _, _ in "[token]" },
@@ -310,23 +340,113 @@ public enum CyberRakshakMonitor {
         return sum % 10 == 0
     }
 
-    /// What a text looks like once scrubbed: what this library would send.
+    /// ISO 13616: the first four characters moved to the end, letters as 10..35, the whole number mod 97 is 1.
+    private static func ibanOk(_ text: String) -> Bool {
+        let s = Array(text.unicodeScalars.filter { $0 != " " })
+        if s.count < 15 || s.count > 34 { return false }
+        var rest = 0
+        for c in Array(s[4...]) + Array(s[..<4]) {
+            let code = Int(c.value)
+            let v = code >= 65 ? code - 55 : code - 48
+            rest = v > 9 ? (rest * 100 + v) % 97 : (rest * 10 + v) % 97
+        }
+        return rest == 1
+    }
+
+    // A context entry's name that says its value is a secret: the words of the password rule anywhere in it, or one of the
+    // whole-word names (at the end, not right after a letter or digit: user_pin, x-tink-signature, not spinning).
+    private static let secretNameRule = rule(#"password|passwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential|session[_-]?id"#, [.caseInsensitive]) { _, _ in nil }
+    private static let wholeNameRule = rule(#"(?:^|[^A-Za-z0-9])(?:authorization|cookie|signature|otp|pin|cvv|cvc|iban|bban|pan|account[_-]?(?:no|number|num)|sort[_-]?code|card[_-]?number|bank[_-]?auth[_-]?id)$"#, [.caseInsensitive]) { _, _ in nil }
+
+    private static func found(_ regex: NSRegularExpression?, _ text: String) -> Bool {
+        guard let regex = regex else { return false }
+        return regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: (text as NSString).length)) != nil
+    }
+
+    private static func secretName(_ name: String) -> Bool {
+        if found(secretNameRule?.regex, name) || found(wholeNameRule?.regex, name) { return true }
+        extras.lock.lock()
+        let keys = extras.keys
+        extras.lock.unlock()
+        return found(keys, name)
+    }
+
+    private static func apply(_ text: String, _ regex: NSRegularExpression, _ replace: (NSTextCheckingResult, NSString) -> String?) -> String {
+        let s = text as NSString
+        var result = ""
+        var last = 0
+        for m in regex.matches(in: text, options: [], range: NSRange(location: 0, length: s.length)) {
+            guard let replaced = replace(m, s) else { continue }
+            result += s.substring(with: NSRange(location: last, length: m.range.location - last)) + replaced
+            last = m.range.location + m.range.length
+        }
+        if last == 0 && result.isEmpty { return text }
+        return result + s.substring(from: last)
+    }
+
+    /// What a text looks like once scrubbed: what this library would send. The built-in rules always run, first; then the
+    /// names and patterns given as scrubNames and scrubPatterns, which can only add to them.
     public static func scrub(_ text: String) -> String {
         var out = text
         for rule in rules {
-            let s = out as NSString
-            var result = ""
-            var last = 0
-            for m in rule.regex.matches(in: out, options: [], range: NSRange(location: 0, length: s.length)) {
-                guard let replaced = rule.replace(m, s) else { continue }
-                result += s.substring(with: NSRange(location: last, length: m.range.location - last)) + replaced
-                last = m.range.location + m.range.length
-            }
-            if last > 0 || !result.isEmpty {
-                out = result + s.substring(from: last)
-            }
+            out = apply(out, rule.regex, rule.replace)
+        }
+        extras.lock.lock()
+        let names = extras.names
+        let patterns = extras.patterns
+        extras.lock.unlock()
+        if let names = names {
+            out = apply(out, names) { m, s in s.substring(with: m.range(at: 1)) + "[removed]" }
+        }
+        for pattern in patterns {
+            out = pattern.stringByReplacingMatches(in: out, options: [], range: NSRange(location: 0, length: (out as NSString).length), withTemplate: NSRegularExpression.escapedTemplate(for: "[removed]"))
         }
         return out
+    }
+
+    /// scrubNames (whole words, at most 50) and scrubPatterns (at most 20; a bad one, or one matching "", is left out).
+    private static func setExtras(_ options: Options) {
+        var names: [String] = []
+        for name in options.scrubNames {
+            guard matches(name, #"^[A-Za-z0-9_.-]{1,40}$"#) else {
+                say(options.debug, "scrubNames: a name was left out: only A-Z a-z 0-9 _ . - (1 to 40)")
+                continue
+            }
+            if names.count >= 50 {
+                say(options.debug, "scrubNames: only the first 50 are used")
+                break
+            }
+            let lower = name.lowercased()
+            if !names.contains(lower) { names.append(lower) }
+        }
+        var patterns: [NSRegularExpression] = []
+        for source in options.scrubPatterns {
+            if patterns.count >= 20 {
+                say(options.debug, "scrubPatterns: only the first 20 are used")
+                break
+            }
+            guard let regex = try? NSRegularExpression(pattern: source) else {
+                say(options.debug, "scrubPatterns: a pattern was left out: it does not compile")
+                continue
+            }
+            if regex.firstMatch(in: "", options: [], range: NSRange(location: 0, length: 0)) != nil {
+                say(options.debug, "scrubPatterns: a pattern that matches an empty text was left out")
+                continue
+            }
+            patterns.append(regex)
+        }
+        var namesRegex: NSRegularExpression?
+        var keysRegex: NSRegularExpression?
+        if !names.isEmpty {
+            let alternation = names.map { NSRegularExpression.escapedPattern(for: $0) }.joined(separator: "|")
+            namesRegex = try? NSRegularExpression(pattern: #"(?<![A-Za-z0-9])((?:"# + alternation + #")\\?["']?[ ]*[=:][ ]*\\?["']?)[^ \t\r\n&,;"'<>\\]+"#, options: [.caseInsensitive])
+            keysRegex = try? NSRegularExpression(pattern: "(?:^|[^A-Za-z0-9])(?:" + alternation + ")$", options: [.caseInsensitive])
+        }
+        extras.lock.lock()
+        extras.names = namesRegex
+        extras.keys = keysRegex
+        extras.patterns = patterns
+        extras.lock.unlock()
     }
 
     private static func matches(_ text: String, _ pattern: String, anywhere: Bool = false) -> Bool {
@@ -374,13 +494,17 @@ public enum CyberRakshakMonitor {
             for (name, value) in source {
                 let key = clip(name, maxContextKey)
                 var kept: Any?
-                switch value {
-                case let v as String: kept = clean(v, maxContextValue)
-                case let v as Bool: kept = v
-                case let v as Int: kept = v
-                case let v as Double: kept = v.isFinite ? v : nil
-                case is NSNull: kept = NSNull()
-                default: kept = nil
+                if secretName(name) {
+                    kept = "[removed]"
+                } else {
+                    switch value {
+                    case let v as String: kept = clean(v, maxContextValue)
+                    case let v as Bool: kept = v
+                    case let v as Int: kept = v
+                    case let v as Double: kept = v.isFinite ? v : nil
+                    case is NSNull: kept = NSNull()
+                    default: kept = nil
+                    }
                 }
                 guard let k = kept else { continue }
                 if out[key] == nil && out.count >= maxContext { continue }

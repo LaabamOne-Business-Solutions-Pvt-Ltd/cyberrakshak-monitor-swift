@@ -5,7 +5,8 @@
 //   TEST_RUNNER_CR_TEST_SERVER=http://127.0.0.1:PORT xcodebuild test ... -destination 'platform=iOS Simulator,...'
 //                                    iOS Simulator: a fake server already running (the CI workflow starts one)
 //
-// The library has no close(), so a start lasts for the whole test process: only testSendingEndToEnd starts it.
+// The library has no close(), so a start lasts for the whole test process: testScrubNamesAndPatternsOnlyAdd starts it
+// with an address nothing answers (and ends by starting it again without its names), then testSendingEndToEnd.
 import Foundation
 import XCTest
 
@@ -16,7 +17,7 @@ final class CyberRakshakMonitorTests: XCTestCase {
     private static let key = "crk_" + String(repeating: "0", count: 32)
 
     func testVersion() {
-        XCTAssertEqual(CyberRakshakMonitor.version, "1.0.0")
+        XCTAssertEqual(CyberRakshakMonitor.version, "1.1.0")
         XCTAssertEqual(CyberRakshakMonitor.defaultEndpoint, "https://app.cyberrakshak.ai/api/v1/app-reports")
     }
 
@@ -41,6 +42,21 @@ final class CyberRakshakMonitorTests: XCTestCase {
         XCTAssertEqual(options.sampleRate, 1)
         XCTAssertFalse(options.debug)
         XCTAssertTrue(options.context.isEmpty)
+        XCTAssertTrue(options.scrubNames.isEmpty)
+        XCTAssertTrue(options.scrubPatterns.isEmpty)
+    }
+
+    func testScrubNamesAndPatternsOnlyAdd() {
+        let nowhere = "http://127.0.0.1:9/api/v1/app-reports"
+        // Before a start with them: only the built-in rules.
+        XCTAssertEqual(CyberRakshakMonitor.scrub("x-brand-key=1 pin=2"), "x-brand-key=1 pin=[removed]")
+        CyberRakshakMonitor.start(.init(key: Self.key, endpoint: nowhere, scrubNames: ["x-brand-key", "face.key", "bad name"],
+                                        scrubPatterns: [#"faces/[A-Za-z0-9/_.-]+"#, "(", "x*"]))
+        XCTAssertEqual(CyberRakshakMonitor.scrub("x-brand-key=B1 face.key=K xface.key=keep faces/2026/a.jpg pin=1 password=2"),
+                       "x-brand-key=[removed] face.key=[removed] xface.key=keep [removed] pin=[removed] password=[removed]")
+        // A start without them takes them away again; the built-in rules stay.
+        CyberRakshakMonitor.start(.init(key: Self.key, endpoint: nowhere))
+        XCTAssertEqual(CyberRakshakMonitor.scrub("x-brand-key=1 pin=2"), "x-brand-key=1 pin=[removed]")
     }
 
     func testSendingEndToEnd() throws {
@@ -84,7 +100,7 @@ final class CyberRakshakMonitorTests: XCTestCase {
             XCTAssertEqual(request["violations"] as? [String], [], "the request broke the contract: \(request)")
             let body = try XCTUnwrap(request["body"] as? [String: Any])
             XCTAssertEqual((body["sdk"] as? [String: Any])?["name"] as? String, "cyberrakshak-ios")
-            XCTAssertEqual((body["sdk"] as? [String: Any])?["version"] as? String, "1.0.0")
+            XCTAssertEqual((body["sdk"] as? [String: Any])?["version"] as? String, "1.1.0")
             XCTAssertEqual(body["release"] as? String, "1.4.2+57")
             XCTAssertEqual(body["environment"] as? String, "production")
             XCTAssertEqual(body["platform"] as? String, platform)
