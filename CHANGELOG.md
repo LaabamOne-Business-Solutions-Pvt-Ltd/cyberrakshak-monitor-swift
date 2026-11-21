@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - unreleased
+## [1.1.0] - 2026-11-22
 
 - Scrubbing, the same rules as every Cyber Rakshak library (the shared `scrub-vectors.json`): IBANs that pass the
   ISO 13616 mod-97 check become `[iban]`; the values after `authorization`, `cookie` / `set-cookie`, `signature`,
