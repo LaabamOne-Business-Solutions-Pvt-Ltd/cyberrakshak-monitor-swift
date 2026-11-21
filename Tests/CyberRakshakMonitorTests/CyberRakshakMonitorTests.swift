@@ -5,8 +5,9 @@
 //   TEST_RUNNER_CR_TEST_SERVER=http://127.0.0.1:PORT xcodebuild test ... -destination 'platform=iOS Simulator,...'
 //                                    iOS Simulator: a fake server already running (the CI workflow starts one)
 //
-// The library has no close(), so a start lasts for the whole test process: testScrubNamesAndPatternsOnlyAdd starts it
-// with an address nothing answers (and ends by starting it again without its names), then testSendingEndToEnd.
+// The library has no close(), so a start lasts for the whole test process. XCTest runs a class's tests in name order:
+// testSendingEndToEnd is the first to start it (a start before it would catch what it expects to be dropped), then
+// testThatScrubNamesAndPatternsOnlyAdd, with an address nothing answers.
 import Foundation
 import XCTest
 
@@ -46,7 +47,7 @@ final class CyberRakshakMonitorTests: XCTestCase {
         XCTAssertTrue(options.scrubPatterns.isEmpty)
     }
 
-    func testScrubNamesAndPatternsOnlyAdd() {
+    func testThatScrubNamesAndPatternsOnlyAdd() {
         let nowhere = "http://127.0.0.1:9/api/v1/app-reports"
         // Before a start with them: only the built-in rules.
         XCTAssertEqual(CyberRakshakMonitor.scrub("x-brand-key=1 pin=2"), "x-brand-key=1 pin=[removed]")
