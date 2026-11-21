@@ -1,0 +1,28 @@
+name: test
+
+# The first place this package (and the library itself) is ever compiled: nobody at Cyber Rakshak has had a Swift
+# toolchain yet. Until this is green, do not tag a release.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: swift --version
+      - run: swift build
+      - name: swift test (the end-to-end test starts Tests/CyberRakshakMonitorTests/Fixtures/fake-server.mjs on 127.0.0.1)
+        run: swift test
+      - name: Build for iOS
+        run: xcodebuild build -scheme CyberRakshakMonitor -destination 'generic/platform=iOS Simulator' -quiet

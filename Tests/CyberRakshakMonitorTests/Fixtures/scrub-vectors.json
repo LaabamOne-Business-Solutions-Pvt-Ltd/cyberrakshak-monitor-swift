@@ -1,0 +1,193 @@
+{
+  "about": "One set of scrub cases for every Cyber Rakshak monitoring library (resources/sdk). Each library's tests run its scrub() over every 'in' and expect 'out' exactly. The rules, in order: query strings; Bearer/Basic values; password/secret/token/api-key style values (the name is kept; at most 40 more name characters after the word); JWTs (a header of at most 500 characters); known key prefixes (crk_, sk_live_, ghp_, AKIA...) not preceded by a letter or digit; email addresses (at most 64 characters before the @); card numbers (13-19 digits, not preceded by a digit, passing the Luhn check); runs of 32+ hex digits; runs of 40+ letters/digits/+_- holding a digit, an upper-case and a lower-case letter.",
+  "vectors": [
+    {
+      "in": "",
+      "out": ""
+    },
+    {
+      "in": "Nothing secret in this sentence.",
+      "out": "Nothing secret in this sentence."
+    },
+    {
+      "in": "Login failed for asha.rao@example.com",
+      "out": "Login failed for [email]"
+    },
+    {
+      "in": "Échec pour jose@example.com — réessayez",
+      "out": "Échec pour [email] — réessayez"
+    },
+    {
+      "in": "Error: x\n    at handler (/srv/app/users/asha@example.com/index.js:10:5)",
+      "out": "Error: x\n    at handler (/srv/app/users/[email]/index.js:10:5)"
+    },
+    {
+      "in": "GET https://shop.example.com/cart?session=abc123&utm=x failed",
+      "out": "GET https://shop.example.com/cart failed"
+    },
+    {
+      "in": "/api/users?email=asha@example.com&page=2",
+      "out": "/api/users"
+    },
+    {
+      "in": "What happened? Nobody knows?",
+      "out": "What happened? Nobody knows?"
+    },
+    {
+      "in": "Authorization: Bearer abc.DEF-123_xyz~+/=",
+      "out": "Authorization: Bearer [token]"
+    },
+    {
+      "in": "authorization: basic dXNlcjpwYXNzd29yZA==",
+      "out": "authorization: basic [token]"
+    },
+    {
+      "in": "BEARER abcdefgh1 was refused",
+      "out": "BEARER [token] was refused"
+    },
+    {
+      "in": "Basic authentication failed",
+      "out": "Basic authentication failed"
+    },
+    {
+      "in": "{\"Authorization\":\"Bearer abcdef123456\"}",
+      "out": "{\"Authorization\":\"Bearer [token]\"}"
+    },
+    {
+      "in": "password=hunter2 user=asha",
+      "out": "password=[removed] user=asha"
+    },
+    {
+      "in": "PASSWORD=Secret123&next=1",
+      "out": "PASSWORD=[removed]&next=1"
+    },
+    {
+      "in": "DB_PASSWORD: s3cr3t!",
+      "out": "DB_PASSWORD: [removed]"
+    },
+    {
+      "in": "{\"client_secret\":\"abc123\",\"ok\":true}",
+      "out": "{\"client_secret\":\"[removed]\",\"ok\":true}"
+    },
+    {
+      "in": "{\\\"api_key\\\": \\\"k-123456\\\"}",
+      "out": "{\\\"api_key\\\": \\\"[removed]\\\"}"
+    },
+    {
+      "in": "x-api-key: 9f8e7d6c",
+      "out": "x-api-key: [removed]"
+    },
+    {
+      "in": "sessionId=abcd; path=/",
+      "out": "sessionId=[removed]; path=/"
+    },
+    {
+      "in": "refresh_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig_nature-1 expired",
+      "out": "refresh_token=[removed] expired"
+    },
+    {
+      "in": "This is no secret",
+      "out": "This is no secret"
+    },
+    {
+      "in": "jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.c2lnbmF0dXJl rejected",
+      "out": "jwt [token] rejected"
+    },
+    {
+      "in": "key crk_0123456789abcdefghijklmnopqrstuv leaked",
+      "out": "key [token] leaked"
+    },
+    {
+      "in": "disk_live_backup12345 is fine",
+      "out": "disk_live_backup12345 is fine"
+    },
+    {
+      "in": "my_sk_live_abcdefghij12 leaked",
+      "out": "my_[token] leaked"
+    },
+    {
+      "in": "sk_test_51HxYzAbCdEfGh",
+      "out": "[token]"
+    },
+    {
+      "in": "pk_live_x is too short",
+      "out": "pk_live_x is too short"
+    },
+    {
+      "in": "AWS key AKIAIOSFODNN7EXAMPLE in config",
+      "out": "AWS key [token] in config"
+    },
+    {
+      "in": "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 used",
+      "out": "[token] used"
+    },
+    {
+      "in": "slack xoxb-1234567890-abcdefghij",
+      "out": "slack [token]"
+    },
+    {
+      "in": "card 4111 1111 1111 1111 declined",
+      "out": "card [card] declined"
+    },
+    {
+      "in": "card 5555-5555-5555-4444 declined",
+      "out": "card [card] declined"
+    },
+    {
+      "in": "card 4111-1111-1111-1112 declined",
+      "out": "card 4111-1111-1111-1112 declined"
+    },
+    {
+      "in": "order 1732190000000 at noon",
+      "out": "order 1732190000000 at noon"
+    },
+    {
+      "in": "ref 1732190000007 at noon",
+      "out": "ref [card] at noon"
+    },
+    {
+      "in": "id 12345678901234567890123",
+      "out": "id 12345678901234567890123"
+    },
+    {
+      "in": "phone +1 415-555-0100 called",
+      "out": "phone +1 415-555-0100 called"
+    },
+    {
+      "in": "session 5f2b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b ok",
+      "out": "session [token] ok"
+    },
+    {
+      "in": "uuid 123e4567-e89b-12d3-a456-426614174000 kept",
+      "out": "uuid 123e4567-e89b-12d3-a456-426614174000 kept"
+    },
+    {
+      "in": "token abcDEF1234567890ghiJKL0987654321mnoPQR_xyz end",
+      "out": "token [token] end"
+    },
+    {
+      "in": "test_retry_after_429_is_honoured_and_backoff_grows_twice failed",
+      "out": "test_retry_after_429_is_honoured_and_backoff_grows_twice failed"
+    },
+    {
+      "in": "at /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1234",
+      "out": "at /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php:1234"
+    },
+    {
+      "in": "line one\nemail: ops@example.co.uk\ttoken=abc\r\nlast",
+      "out": "line one\nemail: [email]\ttoken=[removed]\r\nlast"
+    },
+    {
+      "in": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx@example.com",
+      "out": "xxxxxx[email]"
+    },
+    {
+      "in": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq_password=hunter2",
+      "out": "qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq_password=[removed]"
+    },
+    {
+      "in": "password_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq=hunter2",
+      "out": "password_qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq=hunter2"
+    }
+  ]
+}
