@@ -1,7 +1,7 @@
 name: test
 
-# The first place this package (and the library itself) is ever compiled: nobody at Cyber Rakshak has had a Swift
-# toolchain yet. Until this is green, do not tag a release.
+# Where the library is compiled and tested: macOS (swift build, swift test), a build for iOS devices, and the tests on
+# an iOS Simulator (the end-to-end test against Fixtures/fake-server.mjs, started here, on 127.0.0.1 only).
 
 on:
   push:
@@ -13,16 +13,50 @@ permissions:
   contents: read
 
 jobs:
-  macos:
+  macos-and-ios:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: swift --version
+      - name: Versions
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          xcodebuild -list
       - run: swift build
-      - name: swift test (the end-to-end test starts Tests/CyberRakshakMonitorTests/Fixtures/fake-server.mjs on 127.0.0.1)
+      - name: swift test (macOS; the end-to-end test starts the fake server itself)
         run: swift test
-      - name: Build for iOS
-        run: xcodebuild build -scheme CyberRakshakMonitor -destination 'generic/platform=iOS Simulator' -quiet
+      - name: Build for iOS devices (arm64, unsigned)
+        run: |
+          xcodebuild build -scheme CyberRakshakMonitor -destination 'generic/platform=iOS' -derivedDataPath .build/xcode \
+            CODE_SIGNING_ALLOWED=NO > .build/ios-device.log 2>&1 || { tail -50 .build/ios-device.log; exit 1; }
+          grep -E 'error:|warning:' .build/ios-device.log || true
+          grep -F '** BUILD SUCCEEDED **' .build/ios-device.log
+          ls .build/xcode/Build/Products/Debug-iphoneos
+      - name: Test on an iOS Simulator
+        run: |
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for runtime, list_ in sorted(devices.items(), reverse=True) if "iOS" in runtime for d in list_ if d["name"].startswith("iPhone")))')
+          xcrun simctl list devices available | grep "$udid"
+          scheme=CyberRakshakMonitor
+          if xcodebuild -list | grep -q 'CyberRakshakMonitor-Package'; then scheme=CyberRakshakMonitor-Package; fi
+          # The fake server serves until its standard input closes. Nothing of it holds this step's output open.
+          (sleep 3600 | node Tests/CyberRakshakMonitorTests/Fixtures/fake-server.mjs > .build/fake-server.json 2> .build/fake-server.err) \
+            < /dev/null > /dev/null 2>&1 &
+          for i in $(seq 1 100); do grep -q url .build/fake-server.json 2>/dev/null && break; sleep 0.1; done
+          url=$(python3 -c 'import json; print(json.load(open(".build/fake-server.json"))["url"])')
+          echo "fake server at $url, scheme $scheme"
+          status=0
+          TEST_RUNNER_CR_TEST_SERVER="$url" xcodebuild test -scheme "$scheme" -destination "id=$udid" -derivedDataPath .build/xcode \
+            > .build/ios-simulator.log 2>&1 || status=$?
+          pkill -f fake-server.mjs || true
+          pkill -f 'sleep 3600' || true
+          if [ "$status" != 0 ]; then tail -80 .build/ios-simulator.log; exit 1; fi
+          grep -E "Test Case .*(passed|failed|skipped)|Executed|error:" .build/ios-simulator.log
+          grep -F '** TEST SUCCEEDED **' .build/ios-simulator.log
+          if grep -q "testSendingEndToEnd.*skipped" .build/ios-simulator.log; then echo "the end-to-end test was skipped"; exit 1; fi
