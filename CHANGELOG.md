@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1] - 2026-11-26
+
+- Words only: where its key is made. Since 2026-11-26 the Cyber Rakshak console adds a mobile app, an API, an MCP server, or
+  a script or cron job as an item of its own, with its own key and Errors page (**Apps & websites** → **Add**; the key
+  is shown once on its **Set up** page). The header, the `key` option and the debug message say so. A key made before
+  on a website's **Security scan** tab keeps working. Nothing changes in what is sent, or how.
+
 ## [1.1.0] - 2026-11-22
 
 - Scrubbing, the same rules as every Cyber Rakshak library (the shared `scrub-vectors.json`): IBANs that pass the
