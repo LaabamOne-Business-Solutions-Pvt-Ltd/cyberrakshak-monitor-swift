@@ -1,4 +1,4 @@
-// Cyber Rakshak error monitoring for iOS (Swift), version 1.1.0
+// Cyber Rakshak error monitoring for iOS (Swift), version 1.1.1
 // Docs: https://app.cyberrakshak.ai/sdk/README.md
 // Copyright Laabam One Business Solutions (OPC) Private Limited
 // Released under the MIT licence: https://app.cyberrakshak.ai/sdk/LICENSE
@@ -28,7 +28,7 @@
 import Foundation
 
 public enum CyberRakshakMonitor {
-    public static let version = "1.1.0"
+    public static let version = "1.1.1"
     public static let defaultEndpoint = "https://app.cyberrakshak.ai/api/v1/app-reports"
 
     /// Settings. beforeSend may change a problem or return nil to drop it; context goes with every problem.
@@ -171,7 +171,7 @@ public enum CyberRakshakMonitor {
         guard options.enabled else { return }
         let key = options.key.trimmingCharacters(in: .whitespacesAndNewlines)
         guard matches(key, #"^crk_[A-Za-z0-9]{32}$"#) else {
-            say(options.debug, "not started: key must be your site's crk_ app key (its Security scan tab, Apps, servers and scripts)")
+            say(options.debug, "not started: key must be its crk_ app key (the console's Apps & websites: Add, then its Set up page)")
             return
         }
         setExtras(options)

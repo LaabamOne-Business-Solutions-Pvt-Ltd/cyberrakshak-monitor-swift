@@ -1,6 +1,6 @@
 # CyberRakshakMonitor (Swift)
 
-Cyber Rakshak error monitoring for **iOS 13+** (and macOS 10.15+): what goes wrong in your app lands on your site's
+Cyber Rakshak error monitoring for **iOS 13+** (and macOS 10.15+): what goes wrong in your app lands on its own
 **Errors** page in the Cyber Rakshak console, scrubbed of secrets on the device before it leaves. One Swift file,
 Foundation only, no dependencies.
 
@@ -24,7 +24,7 @@ Swift Package Manager. In Xcode: File → Add Package Dependencies…, then
 `https://github.com/LaabamOne-Business-Solutions-Pvt-Ltd/cyberrakshak-monitor-swift`. In a `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/LaabamOne-Business-Solutions-Pvt-Ltd/cyberrakshak-monitor-swift", from: "1.1.0"),
+.package(url: "https://github.com/LaabamOne-Business-Solutions-Pvt-Ltd/cyberrakshak-monitor-swift", from: "1.1.1"),
 // and in your target: .product(name: "CyberRakshakMonitor", package: "cyberrakshak-monitor-swift")
 ```
 
@@ -38,13 +38,13 @@ CyberRakshakMonitor.captureError(error, context: ["step": 2])
 CyberRakshakMonitor.captureMessage("Payment provider answered slowly")
 ```
 
-The key is your site's app key (`crk_…`), made on the site's **Security scan** tab: under **Apps, servers and scripts**, press **Make an app key**.
+The key is its app key (`crk_…`): in the console's **Apps & websites**, under **Add**, choose what it is and give it a name; its key is shown once on its **Set up** page. A key made before on a website's **Security scan** tab keeps working.
 
 ## Options (`CyberRakshakMonitor.Options`)
 
 | Option | Meaning |
 |---|---|
-| `key` | Your site's app key, `crk_` and 32 letters or digits. Required; with no valid key the library does nothing. |
+| `key` | Its app key, `crk_` and 32 letters or digits. Required; with no valid key the library does nothing. |
 | `endpoint` | Where reports go. Default `https://app.cyberrakshak.ai/api/v1/app-reports`. |
 | `release` | Your version or build (`A-Z a-z 0-9 . _ + -`, at most 60), so a problem shows the release it started in. |
 | `environment` | `production`, `staging`… (`a-z 0-9 _ -`, at most 30). |
